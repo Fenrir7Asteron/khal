@@ -1,7 +1,26 @@
 import khal.parse_datetime as parse_datetime
 import pytest
 import datetime
+import pytz
 from freezegun import freeze_time
+
+from khal.exceptions import DateTimeParseError, FatalError
+
+NEW_YORK = pytz.timezone('America/New_York')
+
+LOCALE_NEW_YORK = {
+    'default_timezone': NEW_YORK,
+    'local_timezone': NEW_YORK,
+    'timeformat': '%H:%M',
+    'dateformat': '%Y/%m/%d',
+    'longdateformat': '%Y/%m/%d',
+    'datetimeformat': '%Y/%m/%d-%H:%M',
+    'longdatetimeformat': '%Y/%m/%d-%H:%M',
+    'firstweekday': 6,
+    'unicode_symbols': True,
+    'weeknumbers': False,
+}
+
 
 # ====== WHITE BOX TESTS ======
 
@@ -37,3 +56,44 @@ def test_calc_day():
     assert parse_datetime.calc_day("tomorrow") == datetime.datetime.now() + datetime.timedelta(days=1)
     assert parse_datetime.calc_day("yesterday") == datetime.datetime.now() - datetime.timedelta(days=1)
     assert parse_datetime.calc_day("sunday") == datetime.datetime(2020, 3, 1)
+
+
+@freeze_time('2020-02-29')
+def test_datefstr_weekday():
+    with pytest.raises(ValueError):
+        parse_datetime.datefstr_weekday([], None)
+    assert parse_datetime.datefstr_weekday(['monday'], None) == datetime.datetime(2020, 3, 2)
+
+
+@freeze_time('2020-02-29')
+def test_datetimefstr_weekday():
+    with pytest.raises(ValueError):
+        parse_datetime.datetimefstr_weekday([], None)
+    assert parse_datetime.datetimefstr_weekday(['monday', '10:30'], '%H:%M') == datetime.datetime(2020, 3, 2, 10, 30)
+
+
+@freeze_time('2020-02-29')
+def test_guessdatetimefstr():
+    assert parse_datetime.guessdatetimefstr(['monday', '10:30'], LOCALE_NEW_YORK, default_day=None, in_future=True) == (datetime.datetime(2020, 3, 2, 10, 30), False)
+    assert parse_datetime.guessdatetimefstr(['10:30'], LOCALE_NEW_YORK, default_day=None, in_future=True) == (datetime.datetime(2020, 2, 29, 10, 30), False)
+    assert parse_datetime.guessdatetimefstr(['24:00'], LOCALE_NEW_YORK, default_day=None, in_future=True) == (datetime.datetime(2020, 2, 29, 0, 0), False)
+    assert parse_datetime.guessdatetimefstr(['now'], LOCALE_NEW_YORK, default_day=None, in_future=True) == (datetime.datetime(2020, 2, 29, 0, 0), False)
+    assert parse_datetime.guessdatetimefstr(['today'], LOCALE_NEW_YORK, default_day=None, in_future=True) == (datetime.datetime(2020, 2, 29, 0, 0), True)
+    assert parse_datetime.guessdatetimefstr(['monday'], LOCALE_NEW_YORK, default_day=None, in_future=True) == (datetime.datetime(2020, 3, 2), True)
+    assert parse_datetime.guessdatetimefstr(['2020/03/02'], LOCALE_NEW_YORK, default_day=datetime.datetime.now(), in_future=True) == (datetime.datetime(2020, 3, 2), True)
+    with pytest.raises(DateTimeParseError):
+        parse_datetime.guessdatetimefstr(['not now'], LOCALE_NEW_YORK, default_day=None, in_future=True)
+
+
+def test_timedelta2str():
+    assert parse_datetime.timedelta2str(-datetime.timedelta(days=2, hours=3, minutes=10, seconds=24)) == '-2d -3h -10m -24s'
+    assert parse_datetime.timedelta2str(datetime.timedelta(seconds=24)) == '24s'
+    assert parse_datetime.timedelta2str(datetime.timedelta(minutes=5)) == '5m'
+
+
+@freeze_time('2020-02-29')
+def test_rrulefstr():
+    assert parse_datetime.rrulefstr('daily', 'monday', LOCALE_NEW_YORK) == {'freq': 'daily', 'until': datetime.datetime(2020, 3, 2)}
+    assert parse_datetime.rrulefstr('daily', None, LOCALE_NEW_YORK) == {'freq': 'daily'}
+    with pytest.raises(FatalError):
+        parse_datetime.rrulefstr('every morning', None, LOCALE_NEW_YORK)
