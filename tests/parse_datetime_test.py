@@ -8,7 +8,7 @@ from khal.parse_datetime import (construct_daynames, eventinfofstr,
                                  guessdatetimefstr, guessrangefstr,
                                  guesstimedeltafstr, timedelta2str,
                                  weekdaypstr)
-from khal.icalendar import new_event
+from khal.utils import new_event
 
 from .utils import (LOCALE_BERLIN, LOCALE_NEW_YORK, _replace_uid,
                     normalize_component)
@@ -23,10 +23,7 @@ def _construct_event(info, locale,
                      defaulttimelen=60, defaultdatelen=1, description=None,
                      location=None, categories=None, repeat=None, until=None,
                      alarm=None, **kwargs):
-    info = eventinfofstr(' '.join(info), locale,
-                         dt.timedelta(days=1),
-                         dt.timedelta(hours=1),
-                         adjust_reasonably=True, localize=False)
+    info = eventinfofstr(' '.join(info), locale, adjust_reasonably=True, localize=False)
     if description is not None:
         info["description"] = description
     event = new_event(

@@ -35,9 +35,6 @@ import pytz
 from dateutil import parser
 
 from .. import utils
-from ..icalendar import (cal_from_ics, assert_only_one_uid,
-                         expand as expand_vevent, sanitize as sanitize_vevent,
-                         sort_key as sort_vevent_key)
 from .exceptions import (CouldNotCreateDbDir, OutdatedDbVersionError,
                          UpdateFailed, NonUniqueUID)
 
@@ -214,9 +211,9 @@ class SQLiteDb(object):
         """
         assert calendar is not None
         assert href is not None
-        ical = cal_from_ics(vevent_str)
+        ical = utils.cal_from_ics(vevent_str)
         check_for_errors(ical, calendar, href)
-        if not assert_only_one_uid(ical):
+        if not utils.assert_only_one_uid(ical):
             logger.warning(
                 "The .ics file at {}/{} contains multiple UIDs.\n"
                 "This should not occur in vdir .ics files.\n"
@@ -226,7 +223,7 @@ class SQLiteDb(object):
                 "".format(calendar, href)
             )
             raise NonUniqueUID
-        vevents = (sanitize_vevent(c, self.locale['default_timezone'], href, calendar) for
+        vevents = (utils.sanitize(c, self.locale['default_timezone'], href, calendar) for
                    c in ical.walk() if c.name == 'VEVENT')
         # Need to delete the whole event in case we are updating a
         # recurring event with an event which is either not recurring any
@@ -234,7 +231,7 @@ class SQLiteDb(object):
         # tables. There are obviously better ways to achieve the same
         # result.
         self.delete(href, calendar=calendar)
-        for vevent in sorted(vevents, key=sort_vevent_key):
+        for vevent in sorted(vevents, key=utils.sort_key):
             check_for_errors(vevent, calendar, href)
             check_support(vevent, href, calendar)
             self._update_impl(vevent, href, calendar)
@@ -243,83 +240,58 @@ class SQLiteDb(object):
         stuple = (vevent_str, etag, href, calendar)
         self.sql_ex(sql_s, stuple)
 
-    def update_vcf_dates(self, vevent_str: str, href: str, etag: str='',
-                         calendar: str=None) -> None:
-        """insert events from a vcard into the db
-
-        This is will parse BDAY, ANNIVERSARY, X-ANNIVERSARY and X-ABDATE fields.
-        It will also look for any X-ABLABEL fields associated with an X-ABDATE
-        and use that in the event description.
-
-        :param vevent_str: contact (vcard) to be parsed.
-        :param href: href of the card on the server, if this href already
-            exists in the db the card gets updated. If no href is given, a
-            random href is chosen and it is implied that this card does not yet
-            exist on the server, but will be uploaded there on next sync.
-        :param etag: the etag of the vcard, if this etag does not match the
-            remote etag on next sync, this card will be updated from the server.
-            For locally created vcards this should not be set
+    def update_birthday(self, vevent_str: str, href: str, etag: str='', calendar: str=None) -> None:
+        """
+        XXX write docstring
         """
         assert calendar is not None
         assert href is not None
-        # Delete all event entries for this contact
-        self.deletelike(href + '%', calendar=calendar)
-        ical = cal_from_ics(vevent_str)
+        self.delete(href, calendar=calendar)
+        ical = utils.cal_from_ics(vevent_str)
         vcard = ical.walk()[0]
-        for key in vcard.keys():
-            if key in ['BDAY', 'X-ANNIVERSARY', 'ANNIVERSARY'] or key.endswith('X-ABDATE'):
-                date = vcard[key]
-                if isinstance(date, list):
-                    logger.warning(
-                        'Vcard {0} in collection {1} has more than one '
-                        '{2}, will be skipped and not be available '
-                        'in khal.'.format(href, calendar, key)
-                    )
-                    continue
-                try:
-                    if date[0:2] == '--' and date[3] != '-':
-                        date = '1900' + date[2:]
-                        orig_date = False
-                    else:
-                        orig_date = True
-                    date = parser.parse(date).date()
-                except ValueError:
-                    logger.warning(
-                        'cannot parse {0} in {1} in collection {2}'.format(key, href, calendar))
-                    continue
-                if 'FN' in vcard:
-                    name = vcard['FN']
+        if 'BDAY' in vcard.keys():
+            bday = vcard['BDAY']
+            if isinstance(bday, list):
+                logger.warning(
+                    'Vcard {0} in collection {1} has more than one '
+                    'BIRTHDAY, will be skipped and not be available '
+                    'in khal.'.format(href, calendar)
+                )
+                return
+            try:
+                if bday[0:2] == '--' and bday[3] != '-':
+                    bday = '1900' + bday[2:]
+                    orig_bday = False
                 else:
-                    n = vcard['N'].split(';')
-                    name = ' '.join([n[1], n[2], n[0]])
-                vevent = icalendar.Event()
-                vevent.add('dtstart', date)
-                vevent.add('dtend', date + dt.timedelta(days=1))
-                if date.month == 2 and date.day == 29:  # leap year
-                    vevent.add('rrule', {'freq': 'YEARLY', 'BYYEARDAY': 60})
-                else:
-                    vevent.add('rrule', {'freq': 'YEARLY'})
-                description = get_vcard_event_description(vcard, key)
-                if orig_date:
-                    if key == 'BDAY':
-                        xtag = 'x-birthday'
-                    elif key.endswith('ANNIVERSARY'):
-                        xtag = 'x-anniversary'
-                    else:
-                        xtag = 'x-abdate'
-                        vevent.add('x-ablabel', description)
-                    vevent.add(xtag,
-                               '{:04}{:02}{:02}'.format(date.year, date.month, date.day))
-                    vevent.add('x-fname', name)
-                vevent.add('summary',
-                           '{0}\'s {1}'.format(name, description))
-                vevent.add('uid', href + key)
-                vevent_str = vevent.to_ical().decode('utf-8')
-                self._update_impl(vevent, href + key, calendar)
-                sql_s = ('INSERT INTO events (item, etag, href, calendar)'
-                         ' VALUES (?, ?, ?, ?);')
-                stuple = (vevent_str, etag, href + key, calendar)
-                self.sql_ex(sql_s, stuple)
+                    orig_bday = True
+                bday = parser.parse(bday).date()
+            except ValueError:
+                logger.warning(
+                    'cannot parse BIRTHDAY in {0} in collection {1}'.format(href, calendar))
+                return
+            if 'FN' in vcard:
+                name = vcard['FN']
+            else:
+                n = vcard['N'].split(';')
+                name = ' '.join([n[1], n[2], n[0]])
+            vevent = icalendar.Event()
+            vevent.add('dtstart', bday)
+            vevent.add('dtend', bday + dt.timedelta(days=1))
+            if bday.month == 2 and bday.day == 29:  # leap year
+                vevent.add('rrule', {'freq': 'YEARLY', 'BYYEARDAY': 60})
+            else:
+                vevent.add('rrule', {'freq': 'YEARLY'})
+            if orig_bday:
+                vevent.add('x-birthday',
+                           '{:04}{:02}{:02}'.format(bday.year, bday.month, bday.day))
+                vevent.add('x-fname', name)
+            vevent.add('summary', '{0}\'s birthday'.format(name))
+            vevent.add('uid', href)
+            vevent_str = vevent.to_ical().decode('utf-8')
+            self._update_impl(vevent, href, calendar)
+            sql_s = ('INSERT INTO events (item, etag, href, calendar) VALUES (?, ?, ?, ?);')
+            stuple = (vevent_str, etag, href, calendar)
+            self.sql_ex(sql_s, stuple)
 
     def _update_impl(self, vevent: icalendar.cal.Event, href: str, calendar: str) -> None:
         """insert `vevent` into the database
@@ -353,7 +325,7 @@ class SQLiteDb(object):
             start_shift_seconds = start_shift.days * 3600 * 24 + start_shift.seconds
             duration_seconds = duration.days * 3600 * 24 + duration.seconds
 
-        dtstartend = expand_vevent(vevent, href)
+        dtstartend = utils.expand(vevent, href)
         if not dtstartend:
             # Does this event even have dates? Technically it is possible for
             # events to be empty/non-existent by deleting all their recurrences
@@ -433,23 +405,6 @@ class SQLiteDb(object):
             sql_s = 'DELETE FROM {0} WHERE href = ? AND calendar = ?;'.format(table)
             self.sql_ex(sql_s, (href, calendar))
         sql_s = 'DELETE FROM events WHERE href = ? AND calendar = ?;'
-        self.sql_ex(sql_s, (href, calendar))
-
-    def deletelike(self, href: str, etag: Any=None, calendar: str=None):
-        """
-        removes events from the db that match an SQL 'like' statement,
-
-        :param href: The pattern of hrefs to delete. May contain SQL wildcards
-                     like '%'
-        :param etag: only there for compatibility with vdirsyncer's Storage,
-                     we always delete
-        :returns: None
-        """
-        assert calendar is not None
-        for table in ['recs_loc', 'recs_float']:
-            sql_s = 'DELETE FROM {0} WHERE href LIKE ? AND calendar = ?;'.format(table)
-            self.sql_ex(sql_s, (href, calendar))
-        sql_s = 'DELETE FROM events WHERE href LIKE ? AND calendar = ?;'
         self.sql_ex(sql_s, (href, calendar))
 
     def list(self, calendar):
@@ -656,22 +611,3 @@ def calc_shift_deltas(vevent: icalendar.Event) -> Tuple[dt.timedelta, dt.timedel
     except KeyError:
         duration = vevent['DURATION'].dt
     return start_shift, duration
-
-
-def get_vcard_event_description(vcard: icalendar.cal.Component, key: str) -> str:
-    if key == 'BDAY':
-        return 'birthday'
-    elif key.endswith('ANNIVERSARY'):
-        return 'anniversary'
-    elif key.endswith('X-ABDATE'):
-        desc_key = key[:-8] + 'X-ABLABEL'
-        if desc_key in vcard.keys():
-            return vcard[desc_key]
-        else:
-            desc_key = key[:-8] + 'X-ABLabel'
-            if desc_key in vcard.keys():
-                return vcard[desc_key]
-            else:
-                return 'custom event from vcard'
-    else:
-        return 'unknown event from vcard'

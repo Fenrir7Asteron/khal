@@ -409,13 +409,12 @@ Options
 
 * **-u, --until=UNTIL** specify until when a recurring event should run
 
-* **--alarms DURATION,...** will add alarm times as DELTAs comma separated for this event,
+* **--alarm DURATION** will add an alarm DURATION before the start of the event,
   *DURATION* should look like `1day 10minutes` or `1d3H10m`, negative
   *DURATIONs* will set alarm after the start of the event.
 
 Examples
 """"""""
-These may need to be adapted for your configuration and/or locale. See :command:`printformats`.
 ::
 
     khal new 18:00 Awesome Event

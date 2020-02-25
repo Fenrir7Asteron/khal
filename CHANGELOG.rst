@@ -8,15 +8,6 @@ may want to subscribe to `GitHub's tag feed
 <https://github.com/geier/khal/tags.atom>`_.
 
 
-0.10.2
-======
-not released
-
-* NEW Parse `X-ANNIVERSARY`, `ANNIVERSARY` and `X-ABDATE` fields from vcards.
-* NEW Add ability to change default event duration with
-   `default_event_duration` and `default_dayevent_duration` for an day-long 
-   event
-
 0.10.1
 ======
 2019-03-30
@@ -28,8 +19,7 @@ not released
 ======
 2019-03-25
 
-* In contrast to what was stated here before, at release time, khal >0.10.0
-   supported dateutil 2.7
+* only dateutil < 2.7 is supported
 
 * NEW DEPENDENCY added click_log  >= 0.2.0
 * NEW DEPENDENCY for Python 3.4: typing
@@ -59,8 +49,6 @@ not released
 * NEW khal learned the ``--logfile/-l LOGFILE`` flag which allows logging to a
   file
 * NEW format can now print the duration of an event with `{duration}`
-* NEW format supports `{nl}`, `{tab}`, `{bell}`. `{status}` has a whitespace
-  like `{cancelled}`
 * NEW configuration option: [view]monthdisplay = firstday|firstfullweek,
   if set to 'firstday', khal displays the month name as soon as any day
   in the week is within the new month. If set to 'firstfullweek', khal

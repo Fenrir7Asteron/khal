@@ -31,9 +31,9 @@ import pytz
 from click import style
 
 from ..exceptions import FatalError
-from ..icalendar import cal_from_ics, delete_instance, invalid_timezone
 from ..terminal import get_color
-from ..utils import generate_random_uid, is_aware, to_naive_utc, to_unix_time
+from ..utils import (cal_from_ics, delete_instance, generate_random_uid,
+                     invalid_timezone, is_aware, to_naive_utc, to_unix_time)
 from ..parse_datetime import timedelta2str
 
 logger = logging.getLogger('khal')
@@ -351,23 +351,11 @@ class Event(object):
 
     @property
     def summary(self):
-        description = None
-        date = self._vevents[self.ref].get('x-birthday', None)
-        if date:
-            description = 'birthday'
-        else:
-            date = self._vevents[self.ref].get('x-anniversary', None)
-            if date:
-                description = 'anniversary'
-            else:
-                date = self._vevents[self.ref].get('x-abdate', None)
-                if date:
-                    description = self._vevents[self.ref].get('x-ablabel', 'custom event')
-
-        if date:
-            number = self.start_local.year - int(date[:4])
+        bday = self._vevents[self.ref].get('x-birthday', None)
+        if bday:
+            number = self.start_local.year - int(bday[:4])
             name = self._vevents[self.ref].get('x-fname', None)
-            if int(date[4:6]) == 2 and int(date[6:8]) == 29:
+            if int(bday[4:6]) == 2 and int(bday[6:8]) == 29:
                 leap = ' (29th of Feb.)'
             else:
                 leap = ''
@@ -379,8 +367,8 @@ class Event(object):
                 suffix = 'rd'
             else:
                 suffix = 'th'
-            return '{name}\'s {number}{suffix} {desc}{leap}'.format(
-                name=name, number=number, suffix=suffix, desc=description, leap=leap,
+            return '{name}\'s {number}{suffix} birthday{leap}'.format(
+                name=name, number=number, suffix=suffix, leap=leap,
             )
         else:
             return self._vevents[self.ref].get('SUMMARY', '')
@@ -619,7 +607,7 @@ class Event(object):
         attributes['tab'] = '\t'
         attributes['bell'] = '\a'
 
-        attributes['status'] = self.status + ' ' if self.status else ''
+        attributes['status'] = self.status
         attributes['cancelled'] = 'CANCELLED ' if self.status == 'CANCELLED' else ''
         return format_string.format(**dict(attributes)) + attributes["reset"]
 
@@ -745,7 +733,7 @@ class AllDayEvent(Event):
             logger.warning('{} ("{}"): The event\'s end date property '
                            'contains the same value as the start date, '
                            'which is invalid as per RFC 5545. Khal will '
-                           'assume this is meant to be a single-day event '
+                           'assume this is meant to be single-day event '
                            'on {}'.format(self.href, self.summary, self.start))
             end += dt.timedelta(days=1)
         return end - dt.timedelta(days=1)

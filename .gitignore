@@ -13,3 +13,5 @@ dist/
 htmlcov
 doc/source/configspec.rst
 .mypy_cache/
+.idea/*
+venv/*
