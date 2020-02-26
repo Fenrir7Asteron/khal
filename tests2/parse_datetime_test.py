@@ -6,7 +6,21 @@ from freezegun import freeze_time
 
 from khal.exceptions import DateTimeParseError, FatalError
 
+BERLIN = pytz.timezone('Europe/Berlin')
 NEW_YORK = pytz.timezone('America/New_York')
+
+LOCALE_BERLIN = {
+    'default_timezone': BERLIN,
+    'local_timezone': BERLIN,
+    'dateformat': '%d.%m.',
+    'longdateformat': '%d.%m.%Y',
+    'timeformat': '%H:%M',
+    'datetimeformat': '%d.%m. %H:%M',
+    'longdatetimeformat': '%d.%m.%Y %H:%M',
+    'unicode_symbols': True,
+    'firstweekday': 0,
+    'weeknumbers': False,
+}
 
 LOCALE_NEW_YORK = {
     'default_timezone': NEW_YORK,
@@ -97,3 +111,143 @@ def test_rrulefstr():
     assert parse_datetime.rrulefstr('daily', None, LOCALE_NEW_YORK) == {'freq': 'daily'}
     with pytest.raises(FatalError):
         parse_datetime.rrulefstr('every morning', None, LOCALE_NEW_YORK)
+
+
+@freeze_time('2020-02-29')
+def test_guesstimedeltafstr():
+    assert parse_datetime.guesstimedeltafstr('1d 1h 15m 30s') == datetime.timedelta(days=1, hours=1, minutes=15, seconds=30)
+    with pytest.raises(ValueError):
+        parse_datetime.guesstimedeltafstr('--1d 1h 15m 30s')
+    with pytest.raises(ValueError):
+        parse_datetime.guesstimedeltafstr('1d 1h 15m 30k')
+
+
+@freeze_time('2020-02-27')
+def test_guessrangefstr():
+    assert parse_datetime.guessrangefstr(
+        ['2020/03/10-10:30', '1 day 10 minute'],
+        LOCALE_NEW_YORK,
+        adjust_reasonably=True
+    ) == \
+           (datetime.datetime(2020, 3, 10, 10, 30), datetime.datetime(2020, 3, 11, 10, 40), False)
+    assert parse_datetime.guessrangefstr(
+        '2020/03/10', LOCALE_NEW_YORK,
+        default_timedelta_date=datetime.timedelta(days=1),
+        default_timedelta_datetime=datetime.timedelta(hours=1),
+        adjust_reasonably=True
+    ) == (datetime.datetime(2020, 3, 10), datetime.datetime(2020, 3, 11), True)
+    assert parse_datetime.guessrangefstr(
+        '2020/03/10-10:31', LOCALE_NEW_YORK,
+        default_timedelta_date=datetime.timedelta(days=1),
+        default_timedelta_datetime=datetime.timedelta(minutes=1),
+        adjust_reasonably=True
+    ) == (datetime.datetime(2020, 3, 10, 10, 31), datetime.datetime(2020, 3, 10, 10, 32), False)
+    assert parse_datetime.guessrangefstr(
+        ['2020/03/10-02:04', 'eod'], LOCALE_NEW_YORK,
+        default_timedelta_date=datetime.timedelta(days=1),
+        default_timedelta_datetime=datetime.timedelta(hours=1)
+    ) == (datetime.datetime(2020, 3, 10, 2, 4), datetime.datetime.combine(datetime.datetime(2020, 3, 10), datetime.time.max), False)
+    assert parse_datetime.guessrangefstr(
+        ['2020/03/10-10:00', '2020/03/10-12:00'], LOCALE_NEW_YORK,
+        default_timedelta_date=datetime.timedelta(days=1),
+        default_timedelta_datetime=datetime.timedelta(hours=1)
+    ) == (datetime.datetime(2020, 3, 10, 10), datetime.datetime(2020, 3, 10, 12), False)
+    assert parse_datetime.guessrangefstr(
+        ['2019/03/10', '2020/03/12'], LOCALE_NEW_YORK,
+        default_timedelta_date=datetime.timedelta(days=1),
+        default_timedelta_datetime=datetime.timedelta(hours=1),
+        adjust_reasonably=True
+    ) == (datetime.datetime(2019, 3, 10), datetime.datetime(2019, 3, 13), True)
+    # TODO: bug that when START is allday and END is not it adds additional day to end, but it should not
+    assert parse_datetime.guessrangefstr(
+        ['2019/03/10', '2020/03/12-10:30'], LOCALE_NEW_YORK,
+        default_timedelta_date=datetime.timedelta(days=1),
+        default_timedelta_datetime=datetime.timedelta(hours=1),
+        adjust_reasonably=True
+    ) == (datetime.datetime(2019, 3, 10), datetime.datetime(2019, 3, 12, 10, 30), True)
+    assert parse_datetime.guessrangefstr(
+        ['2020/03/13', '2020/03/10'], LOCALE_NEW_YORK,
+        default_timedelta_date=datetime.timedelta(days=1),
+        default_timedelta_datetime=datetime.timedelta(hours=1),
+        adjust_reasonably=True
+    ) == (datetime.datetime(2020, 3, 13), datetime.datetime(2021, 3, 11), True)
+    assert parse_datetime.guessrangefstr(
+        ['2020/03/13-10:30', '2020/03/12-9:30'], LOCALE_NEW_YORK,
+        default_timedelta_date=datetime.timedelta(days=1),
+        default_timedelta_datetime=datetime.timedelta(hours=1),
+        adjust_reasonably=True
+    ) == (datetime.datetime(2020, 3, 13, 10, 30), datetime.datetime(2020, 3, 14, 9, 30), False)
+
+    with pytest.raises(DateTimeParseError):
+        parse_datetime.guessrangefstr(
+            ['10.03.2020 09:30', '10:30 13.03.2020'], LOCALE_BERLIN,
+            default_timedelta_date=datetime.timedelta(days=1),
+            default_timedelta_datetime=datetime.timedelta(hours=1)
+        )
+
+    with pytest.raises(DateTimeParseError):
+        parse_datetime.guessrangefstr(
+            ['03/10-10:30'], LOCALE_NEW_YORK,
+            default_timedelta_date=datetime.timedelta(days=1),
+            default_timedelta_datetime=datetime.timedelta(hours=1)
+        )
+
+    with pytest.raises(DateTimeParseError):
+        parse_datetime.guessrangefstr([], LOCALE_NEW_YORK)
+
+    with pytest.raises(FatalError):
+        parse_datetime.guessrangefstr(
+            ['2020/03/10', '10 minute'], LOCALE_NEW_YORK,
+            default_timedelta_date=datetime.timedelta(days=1),
+            default_timedelta_datetime=datetime.timedelta(hours=1)
+        )
+    with pytest.raises(FatalError):
+        parse_datetime.guessrangefstr(
+            ['2020/03/10-10:00', '0 second'], LOCALE_NEW_YORK,
+            default_timedelta_date=datetime.timedelta(days=1),
+            default_timedelta_datetime=datetime.timedelta(hours=1)
+        )
+
+    # TODO: Check why there are 8 days in a week. May be a bug, may be some strange logic.
+    assert parse_datetime.guessrangefstr('week', LOCALE_NEW_YORK) == \
+       (datetime.datetime(2020, 3, 1), datetime.datetime(2020, 3, 8), True)
+
+    assert parse_datetime.guessrangefstr(['2020/03/02', 'week'], LOCALE_NEW_YORK) == \
+           (datetime.datetime(2020, 3, 8), datetime.datetime(2020, 3, 15), True)
+
+
+@freeze_time('2020-02-29')
+def test_eventinfofstr():
+    assert parse_datetime.eventinfofstr(
+        '2020/03/10-10:31 2020/03/10-10:36 :: Some description',
+        LOCALE_NEW_YORK,
+        adjust_reasonably=True
+    ) == {
+        'dtstart': datetime.datetime(2020, 3, 10, 10, 31),
+        'dtend': datetime.datetime(2020, 3, 10, 10, 36),
+        'summary': None,
+        'description': 'Some description',
+        'timezone': NEW_YORK,
+        'allday': False
+    }
+
+    # TODO: Check that resetting timezone to None if allday is a bug.
+    assert parse_datetime.eventinfofstr(
+        '2020/03/10 America/New_York Summary',
+        LOCALE_NEW_YORK,
+        adjust_reasonably=True
+    ) == {
+               'dtstart': datetime.date(2020, 3, 10),
+               'dtend': datetime.date(2020, 3, 11),
+               'summary': 'Summary',
+               'description': None,
+               'timezone': NEW_YORK,
+               'allday': True
+           }
+
+    with pytest.raises(DateTimeParseError):
+        parse_datetime.eventinfofstr(
+            '2020/03//10-10:31 America/New_York Summary',
+            LOCALE_NEW_YORK,
+            adjust_reasonably=True
+        )
