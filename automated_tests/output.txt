@@ -1,0 +1,132 @@
+============================= test session starts =============================
+platform win32 -- Python 3.6.4, pytest-5.3.5, py-1.8.1, pluggy-0.13.1 -- c:\users\admin\appdata\local\programs\python\python36-32\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\ADMIN\Desktop\Study\khal
+collecting ... collected 13 items
+
+automated_tests/calendar_display_test.py::Testget_weeknumber::test_get_year_begin FAILED [  7%]
+automated_tests/calendar_display_test.py::Testget_weeknumber::test_get_middle FAILED [ 15%]
+automated_tests/calendar_display_test.py::Testget_calendar_color::test_sligthly_color PASSED [ 23%]
+automated_tests/calendar_display_test.py::Testget_calendar_color::test_check_init_color PASSED [ 30%]
+automated_tests/calendar_display_test.py::Testget_calendar_color::test_check_code_color FAILED [ 38%]
+automated_tests/calendar_display_test.py::Testget_calendar_color::test_check_format_color FAILED [ 46%]
+automated_tests/calendar_display_test.py::Testget_color_list::test_priority PASSED [ 53%]
+automated_tests/calendar_display_test.py::Testget_color_list::test_second_priority PASSED [ 61%]
+automated_tests/calendar_display_test.py::Testget_color_list::test_duplicated_colors PASSED [ 69%]
+automated_tests/calendar_display_test.py::Teststr_week::test_just_check FAILED [ 76%]
+automated_tests/calendar_display_test.py::Teststr_week::test_increase_week FAILED [ 84%]
+automated_tests/calendar_display_test.py::Teststr_week::test_repetition_of_day FAILED [ 92%]
+automated_tests/calendar_display_test.py::Teststr_week::test_decrease_week FAILED [100%]
+
+================================== FAILURES ===================================
+___________________ Testget_weeknumber.test_get_year_begin ____________________
+
+self = <automated_tests.calendar_display_test.Testget_weeknumber object at 0x04075690>
+
+    def test_get_year_begin(self):
+        assert getweeknumber(dt.date(2020, 1, 1)) == 1
+>       assert getweeknumber(dt.date(2019, 12, 31)) == 53
+E       assert 1 == 53
+E         -1
+E         +53
+
+automated_tests\calendar_display_test.py:20: AssertionError
+_____________________ Testget_weeknumber.test_get_middle ______________________
+
+self = <automated_tests.calendar_display_test.Testget_weeknumber object at 0x0409A290>
+
+    def test_get_middle(self):
+>       assert getweeknumber(dt.date(2020, 6, 4)) == 27
+E       assert 23 == 27
+E         -23
+E         +27
+
+automated_tests\calendar_display_test.py:23: AssertionError
+________________ Testget_calendar_color.test_check_code_color _________________
+
+self = <automated_tests.calendar_display_test.Testget_calendar_color object at 0x040C6050>
+
+    def test_check_code_color(self):
+        self.collection.addCalendar('fourth_calendar', '34', 10)
+>       assert get_calendar_color('fourth_calendar', '34', 10) == '34'
+
+automated_tests\calendar_display_test.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+calendar = 'fourth_calendar', default_color = '34', collection = 10
+
+    def get_calendar_color(calendar, default_color, collection):
+        """Because multi-line lambdas would be un-Pythonic
+        """
+>       if collection._calendars[calendar]['color'] == '':
+E       AttributeError: 'int' object has no attribute '_calendars'
+
+khal\calendar_display.py:57: AttributeError
+_______________ Testget_calendar_color.test_check_format_color ________________
+
+self = <automated_tests.calendar_display_test.Testget_calendar_color object at 0x040F43B0>
+
+    def test_check_format_color(self):
+        self.collection.addCalendar('new_calendar', '#334455', 10)
+>       assert get_calendar_color('new_calendar', '#334455', 10) == '#334455'
+
+automated_tests\calendar_display_test.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+calendar = 'new_calendar', default_color = '#334455', collection = 10
+
+    def get_calendar_color(calendar, default_color, collection):
+        """Because multi-line lambdas would be un-Pythonic
+        """
+>       if collection._calendars[calendar]['color'] == '':
+E       AttributeError: 'int' object has no attribute '_calendars'
+
+khal\calendar_display.py:57: AttributeError
+________________________ Teststr_week.test_just_check _________________________
+
+self = <automated_tests.calendar_display_test.Teststr_week object at 0x0409A0B0>
+
+    def test_just_check(self):
+>       assert str_week(self.week, self.first_day) == ' 1  2  3  4 5 6 7 '
+E       AssertionError: assert '\x1b[7m 1\x1...  4  5  6  7 ' == ' 1  2  3  4 5 6 7 '
+E         - [7m 1[0m  2  3  4  5  6  7 
+E         +  1  2  3  4 5 6 7
+
+automated_tests\calendar_display_test.py:89: AssertionError
+_______________________ Teststr_week.test_increase_week _______________________
+
+self = <automated_tests.calendar_display_test.Teststr_week object at 0x040C63D0>
+
+    def test_increase_week(self):
+        self.week.append(dt.date(2020, 1, 8))
+>       assert str_week(self.week, self.first_day) == ' 1  2  3  4 5 6 7 '
+E       AssertionError: assert '\x1b[7m 1\x1...  5  6  7  8 ' == ' 1  2  3  4 5 6 7 '
+E         - [7m 1[0m  2  3  4  5  6  7  8 
+E         +  1  2  3  4 5 6 7
+
+automated_tests\calendar_display_test.py:93: AssertionError
+_____________________ Teststr_week.test_repetition_of_day _____________________
+
+self = <automated_tests.calendar_display_test.Teststr_week object at 0x040C4BB0>
+
+    def test_repetition_of_day(self):
+        self.week[1] = self.week[0]
+>       assert str_week(self.week, self.first_day) == ' 1  2  3  4 5 6 7 '
+E       AssertionError: assert '\x1b[7m 1\x1...  5  6  7  8 ' == ' 1  2  3  4 5 6 7 '
+E         - [7m 1[0m [7m 1[0m  3  4  5  6  7  8 
+E         +  1  2  3  4 5 6 7
+
+automated_tests\calendar_display_test.py:98: AssertionError
+_______________________ Teststr_week.test_decrease_week _______________________
+
+self = <automated_tests.calendar_display_test.Teststr_week object at 0x040F44D0>
+
+    def test_decrease_week(self):
+        self.week.pop(-1)
+>       assert str_week(self.week, self.first_day) == ' 1  2  3  4 5 6 7 '
+E       AssertionError: assert '\x1b[7m 1\x1...  4  5  6  7 ' == ' 1  2  3  4 5 6 7 '
+E         - [7m 1[0m [7m 1[0m  3  4  5  6  7 
+E         +  1  2  3  4 5 6 7
+
+automated_tests\calendar_display_test.py:103: AssertionError
+========================= 8 failed, 5 passed in 0.27s =========================

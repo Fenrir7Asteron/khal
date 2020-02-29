@@ -110,7 +110,7 @@ def export_to_csv(input_file, output_file, suite):
 
 
 if __name__ == '__main__':
-    export_to_xml('output.txt', 'wb_parse_datetime.xml', 'WB: khal.parse_datetime',
-                  'White box tests for module khal.parse_datetime',
+    export_to_xml('output.txt', 'wb_calendar_display.xml', 'WB: khal.calendar_display',
+                  'White box tests for module khal.calendar_display',
                   'Khal sources should be intact and there should exist version.py file. '
                   'You should install `pytest` and `coverage` Python packages.')
