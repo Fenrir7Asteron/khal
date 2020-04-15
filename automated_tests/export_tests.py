@@ -3,7 +3,7 @@ import xml.etree.ElementTree as xml
 import csv
 
 
-def export_to_xml(input_file: str, output_file: str, suite: str,
+def export_to_xml(input_file: str, output_file: str, suite: str, module_name: str,
                   suite_description_: str = '', suite_preconditions_: str = '', parent_suite_: str = ''):
     nodes = xml.Element("nodes")
     suites = xml.SubElement(nodes, "suites")
@@ -37,7 +37,8 @@ def export_to_xml(input_file: str, output_file: str, suite: str,
             title = xml.SubElement(case, "title")
             title.text = clss + ': ' + method
             description = xml.SubElement(case, "description")
-            description.text = ''
+            description.text = 'Test case for the {} module. Tested function: {}. Test case name: {}.'.\
+                format(module_name, clss, method)
             preconditions = xml.SubElement(case, "preconditions")
             preconditions.text = ''
             postconditions = xml.SubElement(case, "postconditions")
@@ -63,7 +64,7 @@ def export_to_xml(input_file: str, output_file: str, suite: str,
             position.text = "1"
             action = xml.SubElement(step, "action")
             action.text = 'Run test suite from the terminal\ncoverage run ' \
-                          '--branch --source=khal.parse_datetime -m pytest automated_tests/parse_datetime_test.py '
+                          '--branch --source=khal.parse_datetime -m pytest automated_tests/parse_datetime_wb_test.py '
             expected_result = xml.SubElement(step, "expected_result")
             expected_result.text = 'Test should PASS.'
             data = xml.SubElement(step, "data")
@@ -101,7 +102,7 @@ def export_to_csv(input_file, output_file, suite):
                 automation = 'automated'
                 status = 'actual'
                 steps_actions = '1. Run test suite from the terminal\ncoverage run ' \
-                                '--branch --source=khal.parse_datetime -m pytest automated_tests/parse_datetime_test.py '
+                                '--branch --source=khal.parse_datetime -m pytest automated_tests/parse_datetime_wb_test.py '
                 steps_result = '1. Test should PASS.'
                 suite = ''
                 writer.writerow([id, title, description, preconditions, postconditions, priority, severity, type,
@@ -110,7 +111,7 @@ def export_to_csv(input_file, output_file, suite):
 
 
 if __name__ == '__main__':
-    export_to_xml('output.txt', 'wb_calendar_display.xml', 'WB: khal.calendar_display',
-                  'White box tests for module khal.calendar_display',
+    export_to_xml('output.txt', 'parse_datetime_bb.xml', 'BB: khal.parse_datetime', 'khal.parse_datetime',
+                  'Black box tests for module khal.parse_datetime',
                   'Khal sources should be intact and there should exist version.py file. '
                   'You should install `pytest` and `coverage` Python packages.')
