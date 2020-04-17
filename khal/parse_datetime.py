@@ -479,6 +479,7 @@ def eventinfofstr(info_string, locale, adjust_reasonably=False, localize=False):
             "".format(info_string)
         )
 
+
     if tz is None:
         tz = locale['default_timezone']
 
